@@ -229,7 +229,7 @@ public class HttpUtils {
 
 
     /**
-     * 向指定的url发送一次post请求,参数是List<NameValuePair>
+     * 向指定的url发送一次post请求,参数是kvs
      *
      * @param baseUrl 请求地址
      * @param kvs     请求参数,格式是Map<String, Object>
@@ -283,8 +283,8 @@ public class HttpUtils {
      * @return 返回结果, 请求失败时返回null
      * @apiNote http接口处用 @RequestParam接收参数
      */
-    public static void httpAsyncPost(String baseUrl, List<BasicNameValuePair> postBody,
-                                     List<BasicNameValuePair> urlParams, FutureCallback callback) throws Exception {
+    public static void httpAsyncPost(String baseUrl, Map<String,Object> postBody,
+                                     Map<String,Object> urlParams, FutureCallback callback) throws Exception {
         if (baseUrl == null || "".equals(baseUrl)) {
             throw new Exception("missing base url");
         }
@@ -296,21 +296,46 @@ public class HttpUtils {
             HttpPost httpPost = new HttpPost(baseUrl);
 //            httpPost.setHeader("Connection","close");
             if (null != postBody) {
+                List<NameValuePair> params = getParamters(postBody);
                 LOG.debug("exeAsyncReq post postBody={}", postBody);
-                UrlEncodedFormEntity entity = new UrlEncodedFormEntity(
-                        postBody, utf8Charset);
+                UrlEncodedFormEntity entity = new UrlEncodedFormEntity(params, utf8Charset);
                 httpPost.setEntity(entity);
             }
             if (null != urlParams) {
-                String getUrl = EntityUtils
-                        .toString(new UrlEncodedFormEntity(urlParams));
-                httpPost.setURI(new URI(httpPost.getURI().toString()
-                        + "?" + getUrl));
+                List<NameValuePair> params = getParamters(postBody);
+                LOG.debug("exeAsyncReq post postBody={}", postBody);
+                httpPost.setEntity(new UrlEncodedFormEntity(params));
             }
             LOG.warn("exeAsyncReq getparams:" + httpPost.getURI());
             hc.execute(httpPost, callback);
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+
+    /**
+     * 向指定的url发送一次异步get请求,参数是字符串
+     * @param baseUrl
+     * @param kvs
+     * @param headers
+     * @return
+     */
+    public static void httpAsyncGet(String baseUrl, Map<String, Object> kvs, List<Header> headers,FutureCallback callback) {
+        CloseableHttpAsyncClient httpClient = HttpClientFactory.getInstance().getHttpAsyncClientPool().getAsyncHttpClient();
+        StringBuilder sb = new StringBuilder(baseUrl).append("?");
+        //构造baseUrl
+        sb.append(joiner.withKeyValueSeparator("=").join(kvs));
+        HttpGet httpGet = new HttpGet(sb.toString());
+        //构造headers
+        Header[] hs = new Header[headers.size()];
+        httpGet.setHeaders(hs);
+//        LOG.warn("==== Parameters ======" + kvs);
+        try {
+           httpClient.execute(httpGet,callback);
+
+        } catch (Exception e) {
+            LOG.error(e.getCause().getMessage());
         }
     }
 
